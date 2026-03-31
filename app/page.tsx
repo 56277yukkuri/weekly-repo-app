@@ -15,24 +15,36 @@ import {
   Menu,
   MenuItem,
   Button,
+  TextField,
+  Box,
+  Modal,
 } from "@mui/material";
 import { red } from "@mui/material/colors";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { styles } from "./pageLayaut";
+import { Hail } from "@mui/icons-material";
 
 export default function Home() {
   type Post = {
     id: number;
     content: string;
+    created_at: Date;
   };
   const [posts, setPosts] = useState<Post[]>([]);
   const [content, setContent] = useState("");
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-
   //Postの編集用
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [editContent, setEditContent] = useState("");
+
+  //Postの削除用
+  const [deletePostid, setDeletePostid] = useState<number | undefined>();
+
+  // モーダル用
+  const [modalOpen, setModalOpen] = useState(false);
+  const [comfirmOpen, setComfirmOpen] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   //Postの取得
   useEffect(() => {
@@ -48,16 +60,32 @@ export default function Home() {
 
   // Postの投稿
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const { data, error } = await supabase.from("posts").insert([{ content }]);
+    e.preventDefault(); // ブラウザによるデフォルト動作されないためのおまじない（らしい）
+
+    // contentが空の場合はエラーメッセージを表示して処理を中断
+    if (!content.trim()) {
+      setErrorMessage("テキストフィールドが空です");
+      return;
+    }
+
+    setErrorMessage(""); // 送信前にエラーをリセット
+
+    const { error } = await supabase.from("posts").insert([{ content }]);
 
     if (error) {
       alert("エラー: " + error.message);
-    } else if (data) {
+    } else {
       alert("投稿成功！");
-      setPosts((prev) => [data[0], ...prev]); // リロード不要
+      window.location.href = "http://localhost:3000/";
       setContent("");
     }
+  };
+
+  // 編集ボタン押下で編集モーダルを開く＆編集対象を更新
+  const onClickEdit = (post: Post) => {
+    setModalOpen(true);
+    setEditContent(post.content);
+    setEditingPost(post);
   };
 
   //Postの編集
@@ -81,15 +109,32 @@ export default function Home() {
         ),
       );
       setEditingPost(null);
+      setModalOpen(false);
     }
   };
 
-  // Menu開閉
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  // 削除ボタン押下で削除確認モーダルを開く＆削除対象を更新
+  const onClickDelete = (id: number) => {
+    setComfirmOpen(true);
+    setDeletePostid(id);
   };
-  const handleMenuClose = () => {
-    setAnchorEl(null);
+  // Postの削除
+  const handleDelete = async () => {
+    const { error } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", deletePostid);
+
+    if (error) {
+      alert("エラー: " + error.message);
+    } else {
+      alert("削除成功！");
+
+      // state更新（リロード不要）
+      setPosts((p) => p.filter((post) => post.id !== deletePostid));
+      setDeletePostid(undefined);
+      setComfirmOpen(false);
+    }
   };
 
   return (
@@ -98,21 +143,8 @@ export default function Home() {
       <AppBar position="static">
         <Container maxWidth="xl">
           <Toolbar disableGutters>
-            <Typography
-              variant="h6"
-              noWrap
-              component="a"
-              href="#app-bar-with-responsive-menu"
-              sx={{
-                mr: 2,
-                display: { xs: "none", md: "flex" },
-                fontFamily: "monospace",
-                fontWeight: 700,
-                color: "inherit",
-                textDecoration: "none",
-              }}
-            >
-              週報アプリ
+            <Typography variant="h6" component="a" sx={styles.headersx}>
+              簡易Twitter
             </Typography>
           </Toolbar>
         </Container>
@@ -121,21 +153,20 @@ export default function Home() {
       {/* 投稿フォーム */}
       <Container sx={{ mt: 5 }}>
         <Typography variant="h4" gutterBottom>
-          週報一覧
+          ツイート一覧
         </Typography>
         <form onSubmit={handleCreate}>
-          <textarea
-            placeholder="週報を記入してください"
+          {/* フォームのテキストフィールド付近に追加 */}
+          {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+          <TextField
+            placeholder="今何してる？"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            style={{
-              border: "2px solid #cccccc",
-              borderRadius: "4px",
-              padding: "8px",
-              width: "300px", // 必要に応じてサイズ指定
-              height: "100px",
-            }}
+            onChange={(event) => setContent(event.target.value)}
+            multiline
+            rows={4}
+            sx={styles.postformArea}
           />
+          <p></p>
           <Button variant="contained" type="submit">
             投稿
           </Button>
@@ -152,14 +183,8 @@ export default function Home() {
                       R
                     </Avatar>
                   }
-                  action={
-                    // 編集・削除表示
-                    <IconButton aria-label="settings" onClick={handleMenuClick}>
-                      <MoreVertIcon />
-                    </IconButton>
-                  }
                   title="ここに名前いれたい"
-                  subheader="ここに投稿日いれたい"
+                  subheader={new Date(post.created_at).toLocaleString("ja-JP")}
                 />
                 <CardContent>
                   <Typography
@@ -170,88 +195,51 @@ export default function Home() {
                     {post.content.slice(0, 100)}...
                   </Typography>
                 </CardContent>
-
                 {/* メニュー */}
-                <Menu
-                  anchorEl={anchorEl}
-                  open={open}
-                  onClose={handleMenuClose}
-                  slotProps={{
-                    paper: {
-                      sx: {
-                        border: "1px solid #ddd", // 細い枠にする
-                        boxShadow: "none", // 影を消す（または弱くする）
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      setEditingPost({ ...post });
-                      // setEditContent(post.content); // ← ここだけでOK
-                      handleMenuClose(); // Menuを閉じる
-                    }}
-                  >
-                    編集
-                  </MenuItem>
-                  <MenuItem onClick={handleMenuClose}>削除</MenuItem>
-                </Menu>
+                <Button variant="text" onClick={() => onClickEdit(post)}>
+                  編集
+                </Button>
+                <Button variant="text" onClick={() => onClickDelete(post.id)}>
+                  削除
+                </Button>
               </Card>
             </Grid>
           ))}
         </Grid>
       </Container>
-      {editingPost && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h2>投稿を編集</h2>
 
-            <textarea
-              value={editingPost?.content ?? ""}
-              onChange={(e) =>
-                setEditingPost((prev) =>
-                  prev ? { ...prev, content: e.target.value } : prev,
-                )
-              }
-              style={{
-                border: "2px solid #cccccc",
-                borderRadius: "4px",
-                padding: "8px",
-                width: "250px", // 必要に応じてサイズ指定
-                height: "100px",
-              }}
-            />
+      {/* 編集モーダル */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+        <Box sx={styles.Modalsx}>
+          <Typography variant="h6">編集</Typography>
+          <TextField
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            fullWidth
+            multiline
+            rows={3}
+          />
+          <Button variant="contained" onClick={() => handleUpdate()}>
+            更新
+          </Button>
+          <Button variant="outlined" onClick={() => setModalOpen(false)}>
+            キャンセル
+          </Button>
+        </Box>
+      </Modal>
 
-            <div>
-              <Button variant="contained" onClick={handleUpdate}>
-                保存
-              </Button>
-              <Button variant="text" onClick={() => setEditingPost(null)}>
-                キャンセル
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 削除モーダル */}
+      <Modal open={comfirmOpen} onClose={() => setComfirmOpen(false)}>
+        <Box sx={styles.Modalsx}>
+          <Typography variant="body1">削除しますか？</Typography>
+          <Button variant="contained" onClick={() => handleDelete()}>
+            はい
+          </Button>
+          <Button variant="outlined" onClick={() => setComfirmOpen(false)}>
+            いいえ
+          </Button>
+        </Box>
+      </Modal>
     </>
   );
 }
-
-const overlayStyle = {
-  position: "fixed" as const,
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  background: "rgba(0,0,0,0.5)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-};
-
-const modalStyle = {
-  background: "#fff",
-  padding: "20px",
-  borderRadius: "8px",
-  width: "300px",
-};
