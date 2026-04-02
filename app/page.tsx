@@ -11,18 +11,13 @@ import {
   Toolbar,
   CardHeader,
   Avatar,
-  IconButton,
-  Menu,
-  MenuItem,
   Button,
   TextField,
   Box,
   Modal,
 } from "@mui/material";
 import { red } from "@mui/material/colors";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { styles } from "./pageLayaut";
-import { Hail } from "@mui/icons-material";
 
 export default function Home() {
   type Post = {

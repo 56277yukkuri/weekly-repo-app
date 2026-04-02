@@ -3,7 +3,7 @@ import { SxProps, Theme } from "@mui/material";
 export const styles: Record<string, SxProps<Theme>> = {
   headersx: {
     mr: 2,
-    display: { xs: "none", md: "flex" },
+    display: { xs: "flex", md: "flex" },
     fontFamily: "monospace",
     fontWeight: 700,
     color: "inherit",
