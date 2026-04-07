@@ -4,57 +4,51 @@ import { useState } from "react";
 import { createClientssr } from "@/database/supabase";
 import { useRouter, redirect } from "next/navigation";
 
-export default function LoginPage() {
+export default function SigninPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // ログイン
-  const handleLogin = async () => {
+  // 新規登録
+  const handlesignup = async () => {
     setIsLoading(true);
     const supabase = createClientssr();
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          display_name: name,
+        },
+      },
     });
 
+    console.log("data:", data);
+    console.log("error:", error);
+
     if (error) {
-      setMessage(`ログインに失敗しました: ${error.message}`);
+      setMessage(`新規作成に失敗しました: ${error.message}`);
     } else {
-      setMessage(`ログインしました`);
-      router.push("/");
+      setMessage(`新規作成に成功しました`);
+      router.push("/login");
     }
     setIsLoading(false);
   };
 
-  // 新規登録
-  const handlesignup = () => {
-    router.refresh();
-    router.push("/signin");
-
-    // setIsLoading(true);
-    // const supabase = createClientssr();
-
-    // const { error } = await supabase.auth.signUp({
-    //   email,
-    //   password,
-    // });
-
-    // if (error) {
-    //   setMessage(`新規作成に失敗しました: ${error.message}`);
-    // } else {
-    //   setMessage(`新規作成に成功しました`);
-    //   router.push("/signin");
-    // }
-    // setIsLoading(false);
-  };
-
   return (
     <div className="p-4 flex flex-col items-center justify-center min-h-screen">
-      <h2>ログイン</h2>
+      <h2>新規作成</h2>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="名前"
+        className="border p-2 mb-2"
+      />
       <input
         type="email"
         value={email}
@@ -71,20 +65,14 @@ export default function LoginPage() {
       />
       <br />
       <button
-        onClick={handleLogin}
+        onClick={handlesignup}
         disabled={isLoading}
         className="bg-blue-600 text-white px-4 py-2 rounded"
       >
-        {isLoading ? "処理中..." : "ログイン"}
+        {isLoading ? "処理中..." : "新規作成"}
       </button>
       {message && <p className="mt-2 text-sm text-red-500">{message}</p>}
       <br />
-      <div className="text-center text-sm">
-        <p>アカウントを持っていないですか？</p>
-        <button type="button" onClick={handlesignup} className="underline">
-          新規アカウント作成
-        </button>
-      </div>
     </div>
   );
 }

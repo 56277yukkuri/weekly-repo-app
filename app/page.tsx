@@ -18,8 +18,11 @@ import {
 } from "@mui/material";
 import { red } from "@mui/material/colors";
 import { styles } from "./pageLayaut";
+import { User } from "@supabase/supabase-js";
+import { requireAuth } from "@/database/auth";
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
   type Post = {
     id: number;
     content: string;
@@ -51,6 +54,14 @@ export default function Home() {
       setPosts(data ?? []);
     };
     fetchPosts();
+  }, []);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const user = await requireAuth();
+      setUser(user);
+    };
+    fetchUser();
   }, []);
 
   // Postの投稿
@@ -145,8 +156,15 @@ export default function Home() {
         </Container>
       </AppBar>
 
-      {/* 投稿フォーム */}
       <Container sx={{ mt: 5 }}>
+        {user ? (
+          <p>
+            ログイン中: {user.user_metadata.display_name}（{user.email}）
+          </p>
+        ) : (
+          <p>ログインしていません</p>
+        )}
+        {/* 投稿フォーム */}
         <Typography variant="h4" gutterBottom>
           ツイート一覧
         </Typography>
